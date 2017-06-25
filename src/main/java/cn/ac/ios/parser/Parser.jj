@@ -1,0 +1,188 @@
+options
+{
+  JDK_VERSION = "1.8";
+  LOOKAHEAD = 1;
+  STATIC = false;
+}
+
+PARSER_BEGIN(NFAFile)
+
+package cn.ac.ios.parser;
+
+import cn.ac.ios.nfa.NFA;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.BitSet;
+import java.io.Reader;
+
+public class NFAFile
+{
+		
+	public static NFA parse(Reader reader) throws Exception
+	{
+		return new NFAFile(reader).parseNFA();
+	}
+}
+
+PARSER_END(NFAFile)
+
+
+SKIP :
+{
+  " "
+| "\t"
+| "\r"
+| "\n"
+}
+
+
+TOKEN:
+{
+ 	< OPS : "Ops">
+|	< AUTOMATON : "Automaton">
+| 	< STATES : "States">
+| 	< TRANSITIONS : "Transitions">
+| 	< FINAL_STATES : "Final States">
+| 	< INTEGER : (["0"-"1"]) >
+| 	< IDENTIFIER : ["a"-"z","A"-"Z"] ( ["a"-"z","A"-"Z","0"-"9"] )* >
+| 	< LPAR : "(">
+| 	< RPAR : ")">
+| 	< COLON : ":">
+| 	< TO : "->">
+}
+
+
+private NFA parseNFA() :
+{
+  String s="";
+  int num = 0;
+  Token t;
+  Map< String, Integer> mapAction = new HashMap< String, Integer>();
+  Map< String, Integer> mapState = new HashMap< String, Integer>();
+  String start = "";
+  BitSet bitsetInitialState = new BitSet();
+  BitSet bitsetAcceptState= new BitSet();
+  BitSet[][] arrayTransition;
+  int countOfAction = 0;
+  int countOfState = 0;
+  String s1="",a;
+}
+{
+  	< OPS>
+  	(
+  	 	t = < IDENTIFIER> { s=t.image;}
+  	 	< COLON>
+  	 	t = < INTEGER>
+  	 	{
+  	 	  	num=Integer.parseInt(t.image);
+  	 	  	if(num == 0)
+  	 	  	{
+  	 	  	  	start = s;
+  	 	  	}
+  	 	  	else if(num == 1)
+  	 	  	{
+  	 	  	  	mapAction.put(s,countOfAction);
+  	 	  	  	countOfAction++;
+  	 	  	}
+  	 	  	else
+  	 	  	{
+  	 	  	  	System.out.println("Not an NFA");
+  	 	  	}
+  	 	  	
+  	 	}  	)*
+	< AUTOMATON>
+	< IDENTIFIER>
+	< STATES>
+	(
+	  	t = < IDENTIFIER>
+	  	{
+	  	  	s=t.image;
+	  	  	mapState.put(s,countOfState);
+	  	  	countOfState++;
+	  	}	)*
+	< FINAL_STATES>
+	{
+		NFA nfa = new NFA(countOfState,countOfAction);
+		arrayTransition = new BitSet[countOfState][countOfAction];
+		for(int i=0;i<countOfState;i++)
+		{
+		  	for(int j=0;j<countOfAction;j++)
+		  	{
+		  	  	arrayTransition[i][j] = new BitSet(countOfState);
+		  	}
+		}
+	}
+	(
+	  	t = < IDENTIFIER>
+	  	{
+	  	  	s=t.image;
+	  	  	Integer n = mapState.get(s);
+	  	  	if(n==null)
+	  	  	{
+	  	  	  	System.out.println(s + " is not a state!");
+	  	  	}
+	  	  	else
+	  	  	{
+	  	  	  	bitsetAcceptState.set(n);
+	  	  	}
+	  	}
+	)*
+	< TRANSITIONS>
+	{
+		nfa.setAcceptStateSet(bitsetAcceptState);
+	}
+	(
+	  	t = < IDENTIFIER> { a=t.image;}  	  	(  	  	  	< LPAR>
+	  		(t = < IDENTIFIER> { s1 =t.image;})?
+	  		< RPAR>
+	 	)?
+	  	< TO>
+	  	t = < IDENTIFIER>
+	  	{
+	  	  	String s2=t.image;
+	  	  	if(a.equals(start))
+	  	  	{
+	  	  	  	Integer n = mapState.get(s2);
+		  	  	if(n==null)
+		  	  	{
+		  	  	  	System.out.println(s2 + " is not a state!");
+		  	  	}
+		  	  	else
+		  	  	{
+		  	  	  	bitsetInitialState.set(n);
+		  	  	}
+	  	  	}
+	  	  	else
+	  	  	{
+	  	  	  	Integer action = mapAction.get(a);
+	  	  	  	if(action==null)
+		  	  	{
+		  	  	  	System.out.println(a + " is not an action!");
+		  	  	}
+		  	  	else
+		  	  	{
+		  	  	  	Integer src = mapState.get(s1);
+		  	  	  	Integer dst = mapState.get(s2);
+		  	  	  	if(src == null)
+		  	  	  	{
+		  	  	  	  	System.out.println(s1 + " is not a state!");
+		  	  	  	}
+		  	  	  	else if( dst == null)
+		  	  	  	{
+		  	  	  	  	System.out.println(s2 + " is not a state!");
+		  	  	  	}
+		  	  	  	else
+		  	  	  	{
+		  	  	  	  	arrayTransition[src][action].set(dst);
+		  	  	  	}
+		  	  	}
+	  	  	}
+	  	}
+	)*
+	< EOF>
+	{
+		nfa.setInitialStateSet(bitsetInitialState);
+		nfa.setTransitionArray(arrayTransition);
+	  	return nfa;
+	}
+}
