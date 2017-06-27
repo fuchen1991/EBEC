@@ -101,7 +101,7 @@ public class HKCBDD {
 			
 			//x.free();
 			//y.free();
-			unify(x,y);
+			unify(xTransition,yTransition);
 		}
 		
 		//System.out.println("Node num: " + bdd.getFactory().getNodeNum());
